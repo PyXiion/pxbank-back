@@ -1,0 +1,12 @@
+webpush
+py-bcrypt
+python-jose
+python-dotenv
+cryptography
+aiohttp
+pydantic
+pyjwt
+websockets
+sqlalchemy
+alembic
+asyncmy
