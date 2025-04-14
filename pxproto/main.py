@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 
 
 load_dotenv(dotenv_path='.env')
+load_dotenv(dotenv_path='.env.local')
 
 import api.auth, api.transactions, api.currencies, api.accounts, api.push
 from pxws.server import Server
