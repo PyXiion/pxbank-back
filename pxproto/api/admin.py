@@ -18,6 +18,7 @@ async def new_user(session: AsyncSession, ctx: ConnectionContext, username: str,
   await check_admin(session, ctx)
 
   await UserDAO.create(session, username, password)
+  await session.commit()
 
 @route.on('admin/change_password', require_auth=True, ignore_params=['session'])
 @database.connection
