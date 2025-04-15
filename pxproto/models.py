@@ -93,8 +93,8 @@ class Transaction(Base):
               currency_id: int,
               from_account_id: int = None,
               to_account_id: int = None,
-              from_account_number: int,
-              to_account_number: int):
+              from_account_number: str,
+              to_account_number: str):
     data = {
       'id': self.id,
       'amount': float(self.amount),
