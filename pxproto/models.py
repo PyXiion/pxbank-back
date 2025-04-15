@@ -25,6 +25,9 @@ class User(Base):
   joined_at = Column(DateTime, default=datetime.utcnow)
   updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+  def set_password(self, new_password: str):
+    from api.auth import get_hashed_password
+    self.password = get_hashed_password(new_password)
 
 class Currency(Base):
   __tablename__ = "currency"

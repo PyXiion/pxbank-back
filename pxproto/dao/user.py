@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import User
@@ -8,6 +8,33 @@ from .dao import BaseDAO
 
 class UserDAO(BaseDAO[User]):
   model = User
+
+  @classmethod
+  async def create(cls, session: AsyncSession, username: str, password: str):
+    from api.auth import get_hashed_password
+    hashed_password = get_hashed_password(password)
+
+    user = User(
+      username=username,
+      password=hashed_password
+    )
+    session.add(user)
+    await session.flush()
+    return user
+
+  @classmethod
+  async def set_password(cls, session: AsyncSession, id: str|int, new_password: str):
+    from api.auth import get_hashed_password
+    hashed_password = get_hashed_password(new_password)
+
+    stmt = update(cls.model)
+    if isinstance(id, str):
+      stmt = stmt.where(cls.model.username == id)
+    else:
+      stmt = stmt.where(cls.model.id == id)
+    stmt = stmt.values(password=hashed_password)
+
+    await session.execute(stmt)
 
   @classmethod
   async def get_name_by_id(cls, session: AsyncSession, user_id: int) -> Optional[str]:

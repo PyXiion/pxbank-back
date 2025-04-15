@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 load_dotenv(dotenv_path='.env')
 load_dotenv(dotenv_path='.env.local')
 
-import api.auth, api.transactions, api.currencies, api.accounts, api.push
+import api.auth, api.transactions, api.currencies, api.accounts, api.push, api.admin
 from pxws.server import Server
 
 
@@ -16,5 +16,6 @@ server.add_route(api.transactions.route)
 server.add_route(api.currencies.route)
 server.add_route(api.accounts.route)
 server.add_route(api.push.route)
+server.add_route(api.admin.route)
 
 asyncio.run(server.serve_forever('localhost', 4000))
