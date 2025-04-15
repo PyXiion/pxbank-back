@@ -27,6 +27,10 @@ def encode_jwt(data: dict, expiration_delta: timedelta) -> any:
 def decode_jwt(token: str):
   return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
 
+def check_new_password(pwd: str):
+  if len(pwd) < 8:
+    raise ProtocolError('Минимальная длина пароля - 8 символов')
+
 
 route = Route()
 
@@ -147,6 +151,8 @@ async def update_password(ctx: ConnectionContext, old_password: str, new_passwor
 
     if not check_password(old_password, user.password):
       raise ProtocolError("Неверный пароль")
+
+    check_new_password(new_password)
 
     user.password = get_hashed_password(new_password)
     await sess.commit()
