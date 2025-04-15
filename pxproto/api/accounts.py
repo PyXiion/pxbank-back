@@ -167,6 +167,7 @@ async def transfer(session: AsyncSession, from_account: models.Account, to_accou
     amount=amount
   )
   session.add(transaction)
+  await session.flush()
 
   # Попытка уведомить получателя
   if from_account.user_id != to_account.user_id:
@@ -216,7 +217,9 @@ async def get_transaction_payload(
     receiver_name=receiver.user.username,
     currency_id=sender.currency_id,
     from_account_id=from_account_id,
-    to_account_id=to_account_id
+    to_account_id=to_account_id,
+    to_account_number=receiver.account_number,
+    from_account_number=sender.account_number
   )
 
 
