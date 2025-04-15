@@ -2,8 +2,8 @@ import asyncio
 from dotenv import load_dotenv
 
 
-load_dotenv(dotenv_path='.env')
-load_dotenv(dotenv_path='.env.local')
+load_dotenv('.env')
+load_dotenv('.env.local', override=True)
 
 import api.auth, api.transactions, api.currencies, api.accounts, api.push, api.admin
 from pxws.server import Server
