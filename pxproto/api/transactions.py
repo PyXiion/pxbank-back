@@ -1,11 +1,11 @@
-from sqlalchemy import select, or_, func
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import aliased
 
 import database
 from api.accounts import can_access_account
 from dao import UserDAO
 from dao.transaction import TransactionDAO
+from models import Transaction
 from pxws.connection_ctx import ConnectionContext
 from pxws.error_with_data import ProtocolError
 from pxws.route import Route
@@ -43,7 +43,7 @@ async def fetch_transactions(session: AsyncSession, ctx: ConnectionContext, user
 
   transactions = []
   for transaction, sender_acc, recipient_acc, sender_name, recipient_name in transactions_data:
-    # Проверка доступа к каждой стороне
+    transaction: Transaction
     from_access = await can_access_account(session, current_user, sender_acc)
     to_access = await can_access_account(session, current_user, recipient_acc)
 

@@ -7,13 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import database
 import models
-import utils
 from dao import AccountDAO, UserDAO
 from dao.push_service import PushService
+from proto_models import TransferBetweenModel, TransferByNumberModel
 from pxws.connection_ctx import ConnectionContext
 from pxws.error_with_data import ProtocolError
 from pxws.route import Route
-from pxws.server import Server
 
 route = Route()
 
@@ -148,7 +147,9 @@ async def delete(session: AsyncSession, ctx: ConnectionContext, account_id: int)
   account.is_deleted = True
   await session.commit()
 
-async def transfer(session: AsyncSession, from_account: models.Account, to_account: models.Account,
+
+async def transfer(session: AsyncSession, author_id: int, comment: str, from_account: models.Account,
+                   to_account: models.Account,
                    amount: float) -> models.Transaction:
   if from_account.currency_id != to_account.currency_id:
     raise ProtocolError('У счетов разная валюта')
@@ -164,7 +165,9 @@ async def transfer(session: AsyncSession, from_account: models.Account, to_accou
   transaction = models.Transaction(
     sender_account_id=from_account.id,
     recipient_account_id=to_account.id,
-    amount=amount
+    author_id=author_id,
+    amount=amount,
+    comment=comment
   )
   session.add(transaction)
   await session.flush()
@@ -202,6 +205,7 @@ async def validate_accounts_access(
   checks = [await can_access_account(session, user, acc) for acc in accounts]
   return all(checks)
 
+
 async def get_transaction_payload(
     session: AsyncSession,
     transaction: models.Transaction,
@@ -225,18 +229,18 @@ async def get_transaction_payload(
 
 @route.on('accounts/transfer', require_auth=True, ignore_params=['session'])
 @database.connection
-async def transfer_between(session: AsyncSession, ctx: ConnectionContext, from_account_id: int, to_account_id: int,
-                           amount: float):
-  await validate_transfer_amount(amount)
+async def transfer_between(session: AsyncSession, ctx: ConnectionContext,
+                           data: TransferBetweenModel):
+  await validate_transfer_amount(data.amount)
   user = await get_current_user(session, ctx)
 
-  from_account = await AccountDAO.get_account_and_user(session, from_account_id)
-  to_account = await AccountDAO.get_account_and_user(session, to_account_id)
+  from_account = await AccountDAO.get_account_and_user(session, data.from_account_id)
+  to_account = await AccountDAO.get_account_and_user(session, data.to_account_id)
 
   if not from_account or not to_account or not await validate_accounts_access(session, user, from_account, to_account):
     raise ProtocolError('Операция невозможна')
 
-  transaction = await transfer(session, from_account, to_account, amount)
+  transaction = await transfer(session, user.id, data.comment, from_account, to_account, data.amount)
   await session.commit()
 
   return await get_transaction_payload(session, transaction, from_account, to_account, user)
@@ -244,18 +248,18 @@ async def transfer_between(session: AsyncSession, ctx: ConnectionContext, from_a
 
 @route.on('accounts/transfer/by_number', require_auth=True, ignore_params=['session'])
 @database.connection
-async def transfer_between_by_number(session: AsyncSession, ctx: ConnectionContext, from_account_id: int,
-                                     to_account_number: str, amount: float):
-  await validate_transfer_amount(amount)
+async def transfer_between_by_number(session: AsyncSession, ctx: ConnectionContext,
+                                     data: TransferByNumberModel):
+  await validate_transfer_amount(data.amount)
   user = await get_current_user(session, ctx)
 
-  from_account = await AccountDAO.get_account_and_user(session, from_account_id)
-  to_account = await AccountDAO.get_account_and_user(session, to_account_number)
+  from_account = await AccountDAO.get_account_and_user(session, data.from_account_id)
+  to_account = await AccountDAO.get_account_and_user(session, data.to_account_number)
 
   if not from_account or not to_account or not await can_access_account(session, user, from_account):
     raise ProtocolError('Операция невозможна')
 
-  transaction = await transfer(session, from_account, to_account, amount)
+  transaction = await transfer(session, user.id, data.comment, from_account, to_account, data.amount)
   payload = await get_transaction_payload(session, transaction, from_account, to_account, to_account.user)
 
   await session.commit()

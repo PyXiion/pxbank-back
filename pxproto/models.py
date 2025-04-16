@@ -1,15 +1,13 @@
 import decimal
+import enum
 from datetime import datetime
 
-import sqlalchemy
-from sqlalchemy import Column, Integer, String, Table, ForeignKey, DateTime, Boolean, Enum, func, text, DECIMAL, VARCHAR
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, DECIMAL, VARCHAR
 from sqlalchemy.dialects.mysql import TEXT
-from sqlalchemy.ext.asyncio import AsyncAttrs, AsyncSession
+from sqlalchemy.orm import relationship
 
-import proto_models
+from config import TRANSACTION_COMMENT_MAX_LENGTH
 from pxproto.database import Base
-import enum
 
 
 class User(Base):
@@ -28,6 +26,7 @@ class User(Base):
   def set_password(self, new_password: str):
     from api.auth import get_hashed_password
     self.password = get_hashed_password(new_password)
+
 
 class Currency(Base):
   __tablename__ = "currency"
@@ -84,6 +83,7 @@ class Transaction(Base):
   recipient_account_id = Column(ForeignKey("account.id"), index=True)
 
   amount = Column(DECIMAL(19, 2))
+  comment = Column(VARCHAR(TRANSACTION_COMMENT_MAX_LENGTH))
 
   created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -105,7 +105,8 @@ class Transaction(Base):
       'to_account_id': to_account_id,
       'timestamp': self.created_at.timestamp(),
       'from_account_number': from_account_number,
-      'to_account_number': to_account_number
+      'to_account_number': to_account_number,
+      'comment': self.comment
     }
     return {k: v for k, v in data.items() if v is not None}
 
@@ -114,7 +115,8 @@ class WebPushSubscription(Base):
   __tablename__ = "webpush_subscription"
 
   id = Column(Integer, primary_key=True, index=True)
-  user_id = Column(ForeignKey("user.id"), index=True, nullable=False)  # ID пользователя (например, от системы аутентификации)
+  user_id = Column(ForeignKey("user.id"), index=True,
+                   nullable=False)  # ID пользователя (например, от системы аутентификации)
   endpoint = Column(TEXT, nullable=False)  # URL конечной точки подписки
   p256dh = Column(TEXT, nullable=False)  # Публичный ключ (p256dh)
   auth = Column(TEXT, nullable=False)  # Ключ аутентификации (auth)

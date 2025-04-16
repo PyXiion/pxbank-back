@@ -122,7 +122,11 @@ class Server:
         # Случай 2: Один параметр-модель
         # Ожидаем data как значение этого параметра
         param_name = next(iter(handler_info['expected_params']))
-        kwargs[param_name] = request.data
+        param_type = handler_info['type_hints'].get(param_name)
+        if self._is_pydantic_model(param_type):
+          kwargs[param_name] = param_type(**request.data)
+        else:
+          kwargs[param_name] = request.data
 
       # Вызов обработчика
       result = handler(**kwargs)
@@ -145,6 +149,10 @@ class Server:
     except ProtocolError as e:
       error_id = request.id if 'request' in locals() else 'unknown'
       response = ErrorResponse(error=e.message, id=error_id)
+    except ValidationError as e:
+      error_id = request.id if 'request' in locals() else 'unknown'
+      response = ErrorResponse(error='JSON validation error', id=error_id)
+      logger.error(f"Validation error: {e}", exc_info=e)
     except Exception as e:
       error_id = request.id if 'request' in locals() else 'unknown'
       response = ErrorResponse(error='unknown error', id=error_id)

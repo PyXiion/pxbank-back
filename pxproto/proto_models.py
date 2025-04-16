@@ -1,12 +1,22 @@
-import datetime
 from typing import Optional
-from enum import IntEnum
-
-from pydantic import BaseModel, field_validator
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:
-  import models
+from pydantic import BaseModel, constr
 
-class JwtToken(BaseModel):
-  user_id: int
+from config import TRANSACTION_COMMENT_MAX_LENGTH
+
+if TYPE_CHECKING:
+  pass
+
+
+class TransferBaseModel(BaseModel):
+  from_account_id: int
+
+  amount: float
+  comment: Optional[constr(max_length=TRANSACTION_COMMENT_MAX_LENGTH)] = None
+
+class TransferByNumberModel(TransferBaseModel):
+  to_account_number: str
+
+class TransferBetweenModel(TransferBaseModel):
+  to_account_id: int
