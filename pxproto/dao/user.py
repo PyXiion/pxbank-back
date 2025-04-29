@@ -1,9 +1,9 @@
-from typing import Union, Optional
+from typing import Union, Optional, Sequence
 
 from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models import User
+from models import User, Account
 from .dao import BaseDAO
 
 class UserDAO(BaseDAO[User]):
@@ -82,7 +82,7 @@ class UserDAO(BaseDAO[User]):
       name_part: Optional[str] = None,
       limit: int = 10,
       offset: int = 0
-  ) -> list[User]:
+  ) -> Sequence[User]:
     """Поиск пользователей с фильтрацией"""
     stmt = select(cls.model)
 
@@ -92,6 +92,24 @@ class UserDAO(BaseDAO[User]):
 
     if conditions:
       stmt = stmt.where(and_(*conditions))
+
+    stmt = stmt.limit(limit).offset(offset)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+  @classmethod
+  async def get_user_accounts(
+      cls,
+      session: AsyncSession,
+      username: str,
+      public_only: bool,
+      limit: int = 10,
+      offset: int = 0
+  ) -> Sequence[Account]:
+    stmt = select(Account).join(cls.model).where(cls.model.username == username)
+
+    if public_only:
+      stmt = stmt.where(Account.is_public == True)
 
     stmt = stmt.limit(limit).offset(offset)
     result = await session.execute(stmt)

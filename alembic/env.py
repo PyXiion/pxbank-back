@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 import sys
 
+# sys.path.append("/home/pyxiion/PycharmProjects/pxproto-server/pxproto")
 from models import Base
 
 # Добавьте путь к вашему проекту

@@ -1,7 +1,7 @@
 import decimal
 import random
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy import select, exists
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,15 +47,17 @@ async def fetch(ctx: ConnectionContext, username: str):
     if not target_user_id:
       raise ProtocolError("Пользователь не найден")
 
-    if target_user_id != user_id and not is_admin:
-      raise ProtocolError('Доступ к счетам других пользователей запрещён')
-
     stmt = (
       select(
         models.Account
       )
       .where(
         models.Account.user_id == target_user_id,
+        or_(
+          models.Account.is_public == True,
+          models.Account.user_id == user_id,
+          is_admin
+        ),
         models.Account.is_deleted == False
       )
       .order_by(
@@ -66,13 +68,14 @@ async def fetch(ctx: ConnectionContext, username: str):
     result = await sess.execute(stmt)
 
     # формирование ответа
-    can_manage = True
+    can_manage = target_user_id == user_id or is_admin
     accounts = []
     for acc in result.scalars():
       accounts.append(acc.to_dict() | {
         'can_manage': can_manage
       })
 
+    print(accounts)
     return {
       'accounts': accounts
     }
@@ -145,6 +148,18 @@ async def delete(session: AsyncSession, ctx: ConnectionContext, account_id: int)
     raise ProtocolError('Нельзя закрыть счёт с ненулевым балансом')
 
   account.is_deleted = True
+  await session.commit()
+
+@route.on('accounts/settings', require_auth=True, ignore_params=['session'])
+@database.connection
+async def settings(session: AsyncSession, ctx: ConnectionContext, account_id: int, is_public: bool):
+  user = await UserDAO.get_user(session, ctx.get_metadata('user_id'))
+  account = await AccountDAO.get_account(session, account_id, for_update=False)
+
+  if not account or not await can_access_account(session, user,account):
+    raise ProtocolError('Доступ к счёту запрещён')
+
+  account.is_public = is_public
   await session.commit()
 
 
@@ -234,8 +249,8 @@ async def transfer_between(session: AsyncSession, ctx: ConnectionContext,
   await validate_transfer_amount(data.amount)
   user = await get_current_user(session, ctx)
 
-  from_account = await AccountDAO.get_account_and_user(session, data.from_account_id)
-  to_account = await AccountDAO.get_account_and_user(session, data.to_account_id)
+  from_account = await AccountDAO.get_account(session, data.from_account_id, get_user=True, get_org=True)
+  to_account = await AccountDAO.get_account(session, data.to_account_id, get_user=True, get_org=True)
 
   if not from_account or not to_account or not await validate_accounts_access(session, user, from_account, to_account):
     raise ProtocolError('Операция невозможна')
@@ -253,8 +268,8 @@ async def transfer_between_by_number(session: AsyncSession, ctx: ConnectionConte
   await validate_transfer_amount(data.amount)
   user = await get_current_user(session, ctx)
 
-  from_account = await AccountDAO.get_account_and_user(session, data.from_account_id)
-  to_account = await AccountDAO.get_account_and_user(session, data.to_account_number)
+  from_account = await AccountDAO.get_account(session, data.from_account_id, get_user=True, get_org=True)
+  to_account = await AccountDAO.get_account(session, data.to_account_number, get_user=True, get_org=True)
 
   if not from_account or not to_account or not await can_access_account(session, user, from_account):
     raise ProtocolError('Операция невозможна')

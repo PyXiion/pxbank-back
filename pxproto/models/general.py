@@ -1,9 +1,7 @@
 import decimal
-import enum
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Boolean, DECIMAL, VARCHAR
-from sqlalchemy.dialects.mysql import TEXT
 from sqlalchemy.orm import relationship
 
 from config import TRANSACTION_COMMENT_MAX_LENGTH
@@ -18,7 +16,9 @@ class User(Base):
   password = Column(String(256))
 
   is_admin = Column(Boolean, default=False, server_default='0')
+
   account_limit = Column(Integer, server_default='3')
+  organization_limit = Column(Integer, server_default='0')
 
   joined_at = Column(DateTime, default=datetime.utcnow)
   updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -42,6 +42,8 @@ class Account(Base):
 
   id = Column(Integer, primary_key=True, index=True, autoincrement=True)
   user_id = Column(ForeignKey("user.id"), index=True)
+  organization_id = Column(ForeignKey("organization.id"), index=True, nullable=True)
+
   currency_id = Column(ForeignKey("currency.id"), index=True)
 
   name = Column(VARCHAR(30))
@@ -50,27 +52,28 @@ class Account(Base):
 
   balance: decimal.Decimal = Column(DECIMAL(19, 2), default=0.0)
 
+  is_public = Column(Boolean, server_default='0', default=False)
+
   created_at = Column(DateTime, default=datetime.utcnow)
   updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
   is_deleted = Column(Boolean, server_default='0', default=False)
 
   user = relationship("User", backref="accounts")
 
-  def to_dict(self):
-    return {
-      'id': self.id,
+  def to_dict(self, *, include_private_data: bool = True):
+    r = {
       'name': self.name,
-      'order_id': self.list_order,
       'currency_id': self.currency_id,
-      'balance': float(self.balance),
-      'number': self.account_number
+      'number': self.account_number,
     }
-
-
-class TransactionStatus(enum.Enum):
-  PENDING = 0
-  FAILED = 1
-  COMPLETED = 2
+    if include_private_data:
+      r |= {
+        'id': self.id,
+        'order_id': self.list_order,
+        'balance': float(self.balance),
+        'is_public': self.is_public
+      }
+    return r
 
 
 class Transaction(Base):
@@ -109,14 +112,3 @@ class Transaction(Base):
       'comment': self.comment
     }
     return {k: v for k, v in data.items() if v is not None}
-
-
-class WebPushSubscription(Base):
-  __tablename__ = "webpush_subscription"
-
-  id = Column(Integer, primary_key=True, index=True)
-  user_id = Column(ForeignKey("user.id"), index=True,
-                   nullable=False)  # ID пользователя (например, от системы аутентификации)
-  endpoint = Column(TEXT, nullable=False)  # URL конечной точки подписки
-  p256dh = Column(TEXT, nullable=False)  # Публичный ключ (p256dh)
-  auth = Column(TEXT, nullable=False)  # Ключ аутентификации (auth)
