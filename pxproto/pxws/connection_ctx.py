@@ -44,3 +44,6 @@ class ConnectionContext:
   def get_metadata(self, key: str, default: Optional[Any] = None) -> Any:
     """Получает метаданные соединения"""
     return self._metadata.get(key, default)
+
+  def __str__(self):
+    return f'[ConnectionContext, is_authenticated:{self.is_authenticated}, meta: {self._metadata}]'

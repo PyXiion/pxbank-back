@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 import database
 import models
+from dao.org import OrganizationDAO
 from pxws.connection_ctx import ConnectionContext
 from pxws.error_with_data import ErrorWithData, ProtocolError
 from pxws.route import Route
@@ -72,11 +73,14 @@ async def auth(ctx: ConnectionContext, token: str):
       ctx.set_metadata('user_id', user.id)
       ctx.set_metadata('username', user.username)
 
-      await send_toast(ctx, 'info', 'Вы вошли в систему!', None, 3000)
+      # await send_toast(ctx, 'info', 'Вы вошли в систему!', None, 3000)
 
       return {
         'username': user.username,
         'is_admin': user.is_admin,
+
+        'organization_count': await OrganizationDAO.owned_count(sess, user.id),
+        'organization_limit': user.organization_limit,
 
         'exp': payload['exp']
       }

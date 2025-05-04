@@ -13,6 +13,7 @@ class SuccessResponse(BaseModel):
   status: str = "ok"
   data: Any
   id: str
+  ttl: Optional[float] = None
 
 
 class ErrorResponse(BaseModel):

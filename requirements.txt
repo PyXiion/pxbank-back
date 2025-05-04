@@ -10,3 +10,4 @@ cryptography==44.0.2
 pyjwt==2.10.1
 alembic==1.15.2
 asyncmy==0.2.10
+aiofiles

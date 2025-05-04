@@ -65,7 +65,7 @@ class Server:
   async def _on_connection(self, connection: ServerConnection):
     ctx = ConnectionContext(self, connection)
     self._connections[connection] = ctx
-    logger.info(f"New connection, total: {len(self._connections)}")
+    logger.info(f"New connection from {connection.remote_address[0]} ({connection.id}), total: {len(self._connections)}")
 
     try:
       if self._connection_handler:
@@ -84,7 +84,8 @@ class Server:
       request_data = json.loads(message)
       request = Request(**request_data)
 
-      logger.debug(f"Processing request {request.id} of type {request.type}")
+      logger.info(f"\"{request.type}\" from {ctx.connection.remote_address[0]} with id {request.id}")
+      # logger.debug(f"")
 
       if request.type not in self._handlers:
         raise ValueError(f"No handler for type '{request.type}'")
@@ -142,6 +143,10 @@ class Server:
         response_data = result
 
       response = SuccessResponse(data=response_data, id=request.id)
+
+      if ttl := ctx.get_metadata('ttl'):
+        response.ttl = ttl
+        ctx.set_metadata('ttl', None)
 
     except ErrorWithData as e:
       error_id = request.id if 'request' in locals() else 'unknown'

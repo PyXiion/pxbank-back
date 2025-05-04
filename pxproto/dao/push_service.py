@@ -49,8 +49,7 @@ class PushService(BaseDAO[WebPushSubscription]):
     return bool(result.scalar_one_or_none())
 
   @classmethod
-  @database.connection
-  async def send_to_user(cls, user_id: int, title: str, body: str, *, session: AsyncSession):
+  async def send_to_user(cls, session: AsyncSession, user_id: int, title: str, body: str):
     stmt = select(cls.model).filter_by(user_id=user_id)
     subs = await session.execute(stmt)
 
